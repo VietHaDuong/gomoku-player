@@ -1,6 +1,6 @@
 {
     "name": "AgentG",
-    "agent_class": "my_agent.MyGomokuAgent",
+    "agent_class": "agentg.AgentG",
     "author": "Viet Ha Duong",
     "description": "Agent that play casual gomoku",
     "version": "1.0.0"
