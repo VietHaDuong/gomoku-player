@@ -38,18 +38,37 @@ Key patterns:
 
 Phase Detection:
 - Opening: ≤ 8 stones on board
-- Midgame: 9 - 30 stones
+- Midgame: 9–30 stones
 - Late: > 30 stones OR any Four on board
 
+Opening Phase (apply ONLY if total stones on board ≤ 4):
+- Step O1: If you can win this turn or must block an opponent’s win, jump to "Don’t Lose" rules instead.
+- Step O2: If you am the first player (Black, MARK = X) → Play exactly at the board center.  
+  For an 8×8 board, valid center squares are (3,3) or (4,4). Choose the free one with the lowest index from INDEXED_LEGAL_MOVES.
+- Step O3: If you am second player (White, MARK = O) → Play inside the central diamond (Manhattan distance from (3,3) ≤ 2), picking the square closest to center.
+- Step O4: Never open on the outer ring (row=0, row=7, col=0, col=7) unless blocking an immediate win.
+- Step O5: After choosing an opening move, **STOP and output immediately** without checking any other rules.
+
 Global Move Priority (apply in order):
-1. Win now (make MMMMM).
+1. Win Now: If there is any legal move that immediately results in five M in a row (horizontally, vertically, or diagonally), play it. Do not consider any other move. Some patterns that can result in a win: Open Four, Straight Four
 2. Block loss now (if E has Open/Straight Four).
 3. Make Four (Open Four preferred, else Straight Four).
 4. Create Fork (two simultaneous threats: double live-3 or Four+Three).
-5. Break the opponent's best shape (especially Open Three) while improving yours.
+5. Break the opponent’s best shape (especially Open Three) while improving yours.
 6. Extend to Open Three (prefer both ends open).
 7. Strengthen Open Two that connects multiple directions.
-8. Block double broken-three fork: If opponent's stones form .MM.MM. or .EE.EE. in a straight or diagonal line with empty spaces on both ends, play at either of the middle empty points that connect them. This prevents the opponent from creating two open-fours in the next turn.
+8. Block double broken-three fork: If opponent’s stones form .MM.MM. or .EE.EE. in a straight or diagonal line with empty spaces on both ends, play at either of the middle empty points that connect them. This prevents the opponent from creating two open-fours in the next turn.
+
+Don’t Lose (absolute priority after Win-Now):
+- If the opponent can win in their next move, I must block. This includes:
+  - Open-four: .EEEE.
+  - Closed-four: EEEE., .EEEE
+  - Broken-four: EEE.E, EE.EE, .EEE.E., .EE.EE.
+- Forks: If opponent has two or more positions that would win next turn,  
+  find the square that removes **all** immediate wins at once (intersection or shared block).
+- Always check **all directions** (horizontal, vertical, both diagonals).
+- If multiple block moves are possible, choose the one closest to center; if tied, choose lowest index.
+- After blocking, STOP and output.
 
 Tie-breakers: More threats after your move → closer to center → connects your groups → reduces E branching → lowest row, lowest col.
 
@@ -58,20 +77,14 @@ Play Styles:
 - Defense: If E can win next or has two independent live-3 threats → block first, preferring blocks that create your counter-threat.
 - Balanced: If you block twice in a row → force a counter-threat on your next move.
 
-Opening Rules (apply only in Opening phase):
-If you move first (Black role):
-- O1: First move → play in the center (or nearest to center).
-- O2: If safe, extend to live-2 on one axis while keeping a diagonal open (future double live-3).
-- O3: If E caps your main line early, extend on another axis to preserve fork potential.
-
 If you move second (White role):
-- W1: Cap E's easiest path to live-3 while starting your live-2 elsewhere.
+- W1: Cap E’s easiest path to live-3 while starting your live-2 elsewhere.
 - W2: Avoid pure mirroring; instead, break their best extension while increasing your multi-axis potential.
 - W3: If E makes a backbone (MM) → threaten two directions nearby to force blocks, then pivot to Open Four.
 
 Advanced Techniques:
 - Threat creation: Turn .MM.. or .M.M. into .MMM. if safe. From .MMM., extend to MMMM. or .MMMM.
-- Countering threats: Block ends or middle to close the opponent's shape; pick a block that also improves yours if possible.
+- Countering threats: Block ends or middle to close the opponent’s shape; pick a block that also improves yours if possible.
 - Forks: Play pivot cells that are part of two potential threats in different directions.
 
 Game I/O (read carefully; history is authoritative):
@@ -84,7 +97,6 @@ Game I/O (read carefully; history is authoritative):
   1: [r,c]
   2: [r,c]
   ...
-
 
 Board and constraints (read carefully every turn):
 1) NEVER repeat any coordinate that appears in MOVE_HISTORY, even if the board text shows it as empty. HISTORY > board.
