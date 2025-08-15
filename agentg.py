@@ -1,0 +1,168 @@
+import re
+import json
+import random
+from typing import Tuple
+from gomoku import Agent
+from gomoku.llm import OpenAIGomokuClient
+from gomoku.core.models import Player, GameState, GameResult
+
+class AgentG(Agent):
+
+    def _setup(self):
+      self.system_prompt = self._create_system_prompt()
+      self.llm_client = OpenAIGomokuClient(api_key='sk-sFuwp_XclDL0Xy3Uakb--w', model='deepseek/deepseek-r1-0528-qwen3-8b', endpoint='https://api.mtkachenko.info/v1')
+
+    def _create_system_prompt(self) -> str:
+        """Create the system prompt that teaches the LLM how to play Gomoku."""
+        return """
+You are an expert Gomoku (Five-in-a-Row) player. Your goal is to get 5 of your stones in a row (horizontally, vertically, or diagonally) while preventing your opponent from doing the same. Never choose an occupied cell or a cell outside the board.
+
+Pattern Notation:
+- M = Your stones (whichever color you are assigned at runtime — Black if you move first, White if you move second)
+- E = Enemy stones (the opponent)
+- . = Empty cell
+You must check all patterns in 4 directions: horizontal, vertical, and both diagonals.
+
+Key patterns:
+1. Five: MMMMM → win immediately.
+2. Open Four: .MMMM. → win unless both ends are blocked.
+3. Straight Four: MMMM. or .MMMM → threatens immediate win.
+4. Open Three (live-3): .MMM. → two possible winning extensions.
+5. Broken Three: .MM.M. or .M.MM. → can become Four in one move.
+6. Open Two (live-2): .MM.. or ..MM. → future potential.
+
+Phase Detection:
+- Opening: ≤ 8 stones on board
+- Midgame: 9–30 stones
+- Late: > 30 stones OR any Four on board
+
+Global Move Priority (apply in order):
+1. Win now (make MMMMM).
+2. Block loss now (if E has Open/Straight Four).
+3. Make Four (Open Four preferred, else Straight Four).
+4. Create Fork (two simultaneous threats: double live-3 or Four+Three).
+5. Break the opponent’s best shape (especially Open Three) while improving yours.
+6. Extend to Open Three (prefer both ends open).
+7. Strengthen Open Two that connects multiple directions.
+
+Tie-breakers: More threats after your move → closer to center → connects your groups → reduces E branching → lowest row, lowest col.
+
+Play Styles:
+- Offense: If E has no immediate win threat and you can make Open Four, Fork, or Open Three → play offensively.
+- Defense: If E can win next or has two independent live-3 threats → block first, preferring blocks that create your counter-threat.
+- Balanced: If you block twice in a row → force a counter-threat on your next move.
+
+Opening Rules (apply only in Opening phase):
+If you move first (Black role):
+- O1: First move → play in the center (or nearest to center).
+- O2: If safe, extend to live-2 on one axis while keeping a diagonal open (future double live-3).
+- O3: If E caps your main line early, extend on another axis to preserve fork potential.
+
+If you move second (White role):
+- W1: Cap E’s easiest path to live-3 while starting your live-2 elsewhere.
+- W2: Avoid pure mirroring; instead, break their best extension while increasing your multi-axis potential.
+- W3: If E makes a backbone (MM) → threaten two directions nearby to force blocks, then pivot to Open Four.
+
+Advanced Techniques:
+- Threat creation: Turn .MM.. or .M.M. into .MMM. if safe. From .MMM., extend to MMMM. or .MMMM.
+- Countering threats: Block ends or middle to close the opponent’s shape; pick a block that also improves yours if possible.
+- Forks: Play pivot cells that are part of two potential threats in different directions.
+
+Game I/O (read carefully; history is authoritative):
+- BOARD_SIZE: N x N (0-indexed)
+- MOVE_HISTORY (authoritative): [[player, r, c], ...]  // in order; player is "M" or "E"
+- YOUR_LAST_MOVE: [r, c]  // omit if none
+- LEGAL_MOVES (candidate empties from the current board snapshot): [[r,c], [r,c], ...]
+- INDEXED_LEGAL_MOVES: list LEGAL_MOVES again, but numbered:
+  0: [r,c]
+  1: [r,c]
+  2: [r,c]
+  ...
+
+
+Board and constraints (read carefully every turn):
+1) NEVER repeat any coordinate that appears in MOVE_HISTORY, even if the board text shows it as empty. HISTORY > board.
+2) You MUST choose one pair that appears in INDEXED_LEGAL_MOVES AND is NOT in MOVE_HISTORY.
+3) If a coordinate is present in both LEGAL_MOVES and MOVE_HISTORY, treat it as FORBIDDEN.
+4) If your first choice violates any rule, immediately replace it with the lowest-index alternative from INDEXED_LEGAL_MOVES that is not in MOVE_HISTORY.
+
+Additionally (to self-check):
+- In reasoning, refer to the chosen INDEX from INDEXED_LEGAL_MOVES and ensure [row,col] equals that entry.
+- If uncertain due to desync, prefer the lowest valid index not in MOVE_HISTORY.
+
+Output Requirement:
+Before giving the move, you must briefly explain your reasoning in one or two sentences, naming the priority rule applied and the pattern(s) involved. Then output the move in JSON:
+
+{
+              "reasoning": "Brief explanation of your strategic thinking",
+              "row": <row_number>,
+              "col": <col_number>
+}
+
+Keep your thinking concise to fit within the time limit (10 seconds or less). Always follow Phase Detection → Opening Rules (if Opening) → Global Move Priority → Tie-breakers → Choose exactly one pair from LEGAL_MOVES.
+
+          """.strip()
+
+    def _extract_last_json(self, text: str):
+    # strip common code fences if present
+      text = text.replace("```json", "").replace("```", "")
+      blocks = re.findall(r"\{[^}]+\}", text, flags=re.DOTALL)
+      if not blocks:
+          return None
+      try:
+          return json.loads(blocks[-1])
+      except Exception:
+          return None
+
+    def _center_most(self, game_state, legal_moves):
+        if not legal_moves:
+            return None
+        n = game_state.board_size
+        mid = ((n - 1) / 2.0, (n - 1) / 2.0)
+        return min(legal_moves, key=lambda mv: abs(mv[0] - mid[0]) + abs(mv[1] - mid[1]))
+    
+    async def get_move(self, game_state: GameState) -> Tuple[int, int]:
+        """Main method: Get the next move from our LLM."""
+        print(f"\n🧠 {self.agent_id} is thinking...")
+
+        legal = list(game_state.get_legal_moves())             # [(r,c), ...]
+        history = getattr(game_state, "move_history", [])  
+        
+        try:
+
+            board_str = game_state.format_board(formatter="standard")
+            board_prompt = f"Current board state:\n{board_str}\n"
+            board_prompt += f"Current player: {game_state.current_player.value}\n"
+
+            # Create messages for the LLM
+            messages = [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": f"{board_prompt}\n\nPlease provide your next move as JSON."},
+            ]
+
+            print("💡 Full Prompt:\n\n")
+            print(json.dumps(messages, indent=2, ensure_ascii=False))
+            print()
+
+            # Get response from LLM
+            response = await self.llm_client.complete(messages)
+
+            print("💡 Response:\n\n")
+            print(response)
+            print()
+
+            if m := re.search(r"{[^}]+}", response, re.DOTALL):
+                json_data = json.loads(m.group(0).strip())
+                return json_data["row"], json_data["col"]
+
+        except Exception as e:
+            print(e)
+
+        return self._get_fallback_move(game_state)
+
+    def _get_fallback_move(self, game_state: GameState) -> Tuple[int, int]:
+        """Simple fallback when LLM fails."""
+        return random.choice(game_state.get_legal_moves())
+
+print("🎉 Agent G is defined!")
+print("   This agent demonstrates LLM-style strategic thinking.")
