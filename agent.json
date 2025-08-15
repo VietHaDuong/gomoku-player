@@ -3,5 +3,5 @@
     "agent_class": "agentg.AgentG",
     "author": "Viet Ha Duong",
     "description": "Agent that play casual gomoku",
-    "version": "1.0.0"
+    "version": "1.0.4"
 }
