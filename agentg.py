@@ -17,6 +17,11 @@ class AgentG(Agent):
         return """
 You are an expert Gomoku (Five-in-a-Row) player. Your goal is to get 5 of your stones in a row (horizontally, vertically, or diagonally) while preventing your opponent from doing the same. Never choose an occupied cell or a cell outside the board.
 
+Read the Board (must do before picking a move)
+- Scan ALL directions (horizontal, vertical, diag ↘︎, diag ↗︎).
+- Build two lists: OPP_THREATS (can win next move) and MY_CHANCES (I can win this move).
+- Treat move history as ground truth for turn order. Only pick from INDEXED_LEGAL_MOVES.
+
 Pattern Notation:
 - M = Your stones (whichever color you are assigned at runtime — Black if you move first, White if you move second)
 - E = Enemy stones (the opponent)
@@ -33,7 +38,7 @@ Key patterns:
 
 Phase Detection:
 - Opening: ≤ 8 stones on board
-- Midgame: 9–30 stones
+- Midgame: 9 - 30 stones
 - Late: > 30 stones OR any Four on board
 
 Global Move Priority (apply in order):
@@ -41,9 +46,10 @@ Global Move Priority (apply in order):
 2. Block loss now (if E has Open/Straight Four).
 3. Make Four (Open Four preferred, else Straight Four).
 4. Create Fork (two simultaneous threats: double live-3 or Four+Three).
-5. Break the opponent’s best shape (especially Open Three) while improving yours.
+5. Break the opponent's best shape (especially Open Three) while improving yours.
 6. Extend to Open Three (prefer both ends open).
 7. Strengthen Open Two that connects multiple directions.
+8. Block double broken-three fork: If opponent's stones form .MM.MM. or .EE.EE. in a straight or diagonal line with empty spaces on both ends, play at either of the middle empty points that connect them. This prevents the opponent from creating two open-fours in the next turn.
 
 Tie-breakers: More threats after your move → closer to center → connects your groups → reduces E branching → lowest row, lowest col.
 
@@ -59,13 +65,13 @@ If you move first (Black role):
 - O3: If E caps your main line early, extend on another axis to preserve fork potential.
 
 If you move second (White role):
-- W1: Cap E’s easiest path to live-3 while starting your live-2 elsewhere.
+- W1: Cap E's easiest path to live-3 while starting your live-2 elsewhere.
 - W2: Avoid pure mirroring; instead, break their best extension while increasing your multi-axis potential.
 - W3: If E makes a backbone (MM) → threaten two directions nearby to force blocks, then pivot to Open Four.
 
 Advanced Techniques:
 - Threat creation: Turn .MM.. or .M.M. into .MMM. if safe. From .MMM., extend to MMMM. or .MMMM.
-- Countering threats: Block ends or middle to close the opponent’s shape; pick a block that also improves yours if possible.
+- Countering threats: Block ends or middle to close the opponent's shape; pick a block that also improves yours if possible.
 - Forks: Play pivot cells that are part of two potential threats in different directions.
 
 Game I/O (read carefully; history is authoritative):
@@ -90,6 +96,11 @@ Additionally (to self-check):
 - In reasoning, refer to the chosen INDEX from INDEXED_LEGAL_MOVES and ensure [row,col] equals that entry.
 - If uncertain due to desync, prefer the lowest valid index not in MOVE_HISTORY.
 
+When applying patterns, substitute symbols by side each turn:
+- If you are Black: M=X (you), E=O (opponent).
+- If you are White: M=O (you), E=X (opponent).
+Always use the mapping for the current turn only.
+
 Output Requirement:
 Before giving the move, you must briefly explain your reasoning in one or two sentences, naming the priority rule applied and the pattern(s) involved. Then output the move in JSON:
 
@@ -99,35 +110,17 @@ Before giving the move, you must briefly explain your reasoning in one or two se
               "col": <col_number>
 }
 
-Keep your thinking concise to fit within the time limit (10 seconds or less). Always follow Phase Detection → Opening Rules (if Opening) → Global Move Priority → Tie-breakers → Choose exactly one pair from LEGAL_MOVES.
+Keep your thinking concise to fit within the time limit. Always follow Phase Detection → Opening Rules (if Opening) → Global Move Priority → Tie-breakers → Choose exactly one pair from LEGAL_MOVES.
 
           """.strip()
 
-    def _extract_last_json(self, text: str):
-    # strip common code fences if present
-      text = text.replace("```json", "").replace("```", "")
-      blocks = re.findall(r"\{[^}]+\}", text, flags=re.DOTALL)
-      if not blocks:
-          return None
-      try:
-          return json.loads(blocks[-1])
-      except Exception:
-          return None
-
-    def _center_most(self, game_state, legal_moves):
-        if not legal_moves:
-            return None
-        n = game_state.board_size
-        mid = ((n - 1) / 2.0, (n - 1) / 2.0)
-        return min(legal_moves, key=lambda mv: abs(mv[0] - mid[0]) + abs(mv[1] - mid[1]))
-    
     async def get_move(self, game_state: GameState) -> Tuple[int, int]:
         """Main method: Get the next move from our LLM."""
         print(f"\n🧠 {self.agent_id} is thinking...")
 
         legal = list(game_state.get_legal_moves())             # [(r,c), ...]
-        history = getattr(game_state, "move_history", [])  
-        
+        history = getattr(game_state, "move_history", [])
+
         try:
 
             board_str = game_state.format_board(formatter="standard")
@@ -165,4 +158,3 @@ Keep your thinking concise to fit within the time limit (10 seconds or less). Al
         return random.choice(game_state.get_legal_moves())
 
 print("🎉 Agent G is defined!")
-print("   This agent demonstrates LLM-style strategic thinking.")
