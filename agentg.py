@@ -52,6 +52,25 @@ Constraints:
 4.1 If you can win in this move, always take the win.
 
 4.2 If the opponent can win in the next move, block it — but do so in a way that also builds your own line whenever possible.
+4.2a Plan-First Progress (when no win/loss is immediate)
+• Play the move that increases progress toward your Main Line milestones the most.
+  Simple threat score (pick the highest):
+  +5 create open-4 (.XXXX.)
+  +4 create fork (two independent threats next turn)
+  +3 upgrade to live-3 (.XXX.)
+  +2 extend live-2 to closed-3 (XX.)
+  +1 extend toward center/Anchor adjacency
+  Tie-breakers: more threats cut from opponent > closer to center > lower index.
+
+4.2b Plan-Preserving Defense (when a block is required)
+• Choose the block that ALSO (i) extends your Main/Secondary Line or (ii) keeps both lines intact.
+• If no such block exists, place the minimal pure block that prevents the loss, then immediately resume Plan-First Progress.
+
+4.2c Re-evaluate Triggers (when to change the plan)
+• Switch or rotate the Main Line only if:
+  - the line is hard-capped at both ends, or
+  - opponent's block creates a strictly better fork elsewhere.
+• Otherwise, stay committed—finishing one planned line beats starting over.
 
 4.3 Always prefer moves that create forks (two or more simultaneous winning threats). 
      - For example: extend a chain that also leaves an open diagonal. 
@@ -69,26 +88,50 @@ Constraints:
      - Always extend or branch your lines toward positions that can become dual threats (overlapping rows/columns/diagonals).
      - Avoid scattered, isolated stones. Build clusters that generate pressure.
 
-4.7 If no winning or punishing moves are available, then play for draw by reducing open spaces and breaking the opponent’s structure — 
+4.7 If no winning or punishing moves are available, then play for draw by reducing open spaces and breaking the opponent's structure — 
      but keep looking for counterattack opportunities to turn defense into attack.
 
+4.8 Counterattack Bias:
+• After any forced block, your next move should create a threat that compels a response (fork or open-4) near your Anchor cluster.
+     
 ⸻
 
 5. Opening Strategy (Aggressively Opportunistic with Counterattack)
 
-5.1 Start centrally — place first stones near the middle of the board. 
+5.1 Start centrally — place first stones near the middle of the board, the center of the board is defined as around (3, 4), (3, 3), (4, 3) and (4, 4). 
      This gives maximum flexibility for diagonals, rows, and forks.
+     
+5.2 Winning-Line Commitment (decide your win route early)
 
-5.2 Early Goal: Create tension by building "live-2" or "live-3" formations in the center.
+• On your first 1-2 own moves, DECLARE a Main Line:
+  - Pick a direction from {horizontal, vertical, ↘, ↗} that goes through/near center.
+  - Choose an Anchor cell on that line (one of your existing stones near center).
+
+• Milestones for the Main Line:
+  M1: reach a connected live-2 along the line.
+  M2: upgrade to a live-3 (.XXX.) along the line.
+  M3: branch to a Secondary Line ≈90° to set up a fork.
+  M4: convert to open-4 (.XXXX.) → win next.
+
+• Move selection (opening, unless survival triggers):
+  - Prefer moves that advance the Main Line toward the next milestone.
+  - If two moves advance equally, pick the one that also seeds the Secondary Line.
+  - Avoid scattering: every move should extend/branch from your Anchor cluster.
+
+• Plan-preserving defense (opening):
+  - If you must block, choose a block that also advances or protects your Main/Secondary Line when possible.
+  - If a pure block is unavoidable, return to advancing the Main Line on the very next move.
+
+5.3 Early Goal: Create tension by building "live-2" or "live-3" formations in the center.
      - Prioritize diagonals and crosses since these can branch into forks.
 
-5.3 Do not waste moves on distant corners unless forced by opponent. 
+5.4 Do not waste moves on distant corners unless forced by opponent. 
      Always keep pressure clustered.
 
-5.4 Try to shape overlapping threats:
+5.5 Try to shape overlapping threats:
      - Example: two diagonals intersecting with a row, so future moves can create instant forks.
 
-5.5 By the 5th - 7th move, aim to already have at least one dual-threat possibility forming.
+5.6 By the 5th - 7th move, aim to already have at least one dual-threat possibility forming.
      - This keeps opponent under pressure early, forcing mistakes.
 
 ⸻
