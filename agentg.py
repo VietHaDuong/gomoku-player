@@ -47,8 +47,44 @@ Constraints:
 	4.	If your chosen move violates rules, replace it with the lowest valid index in INDEXED_LEGAL_MOVES.
 
 ⸻
+4. Decision Priority Rules (always follow this order)
 
-4. Opening Strategy
+At every turn, follow this checklist in order. Do not skip steps.
+
+⸻
+
+4.1. Survival (Absolute Defense First)
+	•	If opponent has five-in-a-row next turn (open four: XXXX_ or _XXXX) → block immediately.
+	•	If opponent has a live three (three in a row with both ends open) → block immediately.
+	•	If opponent has a fork (two simultaneous win paths) → block the most urgent one.
+
+⚠️ Rule: Never ignore these threats. Always defend, even if you were about to attack.
+
+⸻
+4.2. Win if You Can (Absolute Offense)
+	•	If you can place a stone and make five in a row → do it immediately.
+	•	If you already have an open four → extend to win.
+
+⚠️ This overrides defense only when your move ends the game instantly in your favor.
+
+⸻
+4.3. Balanced Offense - Defense (Dual Purpose Moves)
+	•	If no urgent threats exist:
+	•	Create open threes or forks that force opponent to defend.
+	•	Whenever possible, pick a move that both blocks the opponent and strengthens your chain.
+	•	Avoid placing stones that don't connect to an existing plan (“floating stones”).
+
+⸻
+
+4.4. Strategic Expansion (Safe Board State)
+	•	If the board is safe (no live threats for either side):
+	•	Build flexible two- or three-stone shapes.
+	•	Place pivot stones that connect multiple directions.
+	•	Prefer center/near-center positions for wider influence.
+
+⸻
+
+5. Opening Strategy
 
 If you start first (Black / X):
 	•	Take the center (or as close as possible).
@@ -63,60 +99,19 @@ If you move second (White / O):
 
 ⸻
 
-5. Play Styles
+6. Play Styles
 	•	Offense: If opponent has no immediate threat and you can make Open Four, Fork, or Open Three → attack.
 	•	Defense: If opponent can win next or has two live-3 threats → block first, preferring blocks that create your counter-shape.
 	•	Balanced: If you've blocked twice in a row → create a counter-threat on your next move.
 
 
 ⸻
-
-6. Advanced Techniques
+7. Advanced Techniques
 	•	Threat creation: Safely turn ..XX. into ..XXX.; extend further if safe.
 	•	Countering threats: Block ends or middle to shut opponent's extension; prefer blocks that also extend your shape.
 	•	Forks: Play pivot cells that support two independent threats.
 
 ⸻
-
-7. Decision Priority Rules (always follow this order)
-
-At every turn, follow this checklist in order. Do not skip steps.
-
-⸻
-
-7.1. Survival (Absolute Defense First)
-	•	If opponent has five-in-a-row next turn (open four: XXXX_ or _XXXX) → block immediately.
-	•	If opponent has a live three (three in a row with both ends open) → block immediately.
-	•	If opponent has a fork (two simultaneous win paths) → block the most urgent one.
-
-⚠️ Rule: Never ignore these threats. Always defend, even if you were about to attack.
-
-⸻
-
-7.2. Win if You Can (Absolute Offense)
-	•	If you can place a stone and make five in a row → do it immediately.
-	•	If you already have an open four → extend to win.
-
-⚠️ This overrides defense only when your move ends the game instantly in your favor.
-
-⸻
-
-7.3. Balanced Offense - Defense (Dual Purpose Moves)
-	•	If no urgent threats exist:
-	•	Create open threes or forks that force opponent to defend.
-	•	Whenever possible, pick a move that both blocks the opponent and strengthens your chain.
-	•	Avoid placing stones that don't connect to an existing plan (“floating stones”).
-
-⸻
-
-7.4. Strategic Expansion (Safe Board State)
-	•	If the board is safe (no live threats for either side):
-	•	Build flexible two- or three-stone shapes.
-	•	Place pivot stones that connect multiple directions.
-	•	Prefer center/near-center positions for wider influence.
-
-⸻
-
 8. Tie-Breaking Rules
 	•	Prefer moves that:
 	1.	Create future threat potential.
