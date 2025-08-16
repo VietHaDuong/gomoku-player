@@ -17,46 +17,35 @@ class AgentG(Agent):
         return """
 You are a Gomoku player. Your only job is to place stones on the board legally and strategically.
 
-AFTER OPENING, APPLY THIS DECISION PROCEDURE EVERY TURN:
+AFTER OPENING, APPLY RULES IN ORDER (absolute):
 
-RULE 1 — WIN NOW
-If any legal empty (r,c) gives five-in-a-row for me → play it immediately.
+RULE 1 — WIN NOW: If a legal move gives five-in-a-row, DO IT NOW.
+RULE 2 — BLOCK NOW: If opponent can win next move, BLOCK IT NOW.
+RULE 3 — LOCAL-BUILD (8-neighborhood):
+  Let S = your most recent move (row_s, col_s). 
+  A) First consider ONLY empty cells in the 8-neighborhood of S:
+     N8 = {(r,c): |r-row_s|≤1 and |c-col_s|≤1 and not (r=row_s and c=col_s)}
+  B) If N8 has at least one legal empty, choose from N8 using the scoring below.
+  C) If N8 has none, expand to the next ring (Manhattan distance = 2), then =3, etc., 
+     stopping at the first ring that contains a legal empty.
+  D) Never pick a farther ring if a nearer ring has a legal empty.
 
-RULE 2 — BLOCK NOW
-If any legal empty (r,c) gives the opponent five-in-a-row next turn → block it immediately.
+RULE 4 — CENTER-OUT BIAS:
+  Prefer cells with smaller Manhattan distance to center (size//2,size//2) 
+  only as a tie-breaker after RULE 3's ring restriction.
 
-RULE 3 — ROW/COLUMN LINE-TALLY (deterministic scoring)
-Evaluate ONLY legal empties. For each candidate cell (r,c):
+SCORING (apply inside the chosen ring only):
+  For candidate (r,c):
+    row_run  = contiguous_same_left + 1 + contiguous_same_right
+    col_run  = contiguous_same_up   + 1 + contiguous_same_down
+    open_row = (left_empty?1:0) + (right_empty?1:0)
+    open_col = (up_empty?1:0)   + (down_empty?1:0)
+    score = 10 * max(row_run, col_run) + 3 * (open_row + open_col)
+  Pick the highest score. Tie-breakers: larger max(row_run,col_run) → closer to center → lower row → lower col.
 
-A) ROW RUNS:
-  - Lr = number of my contiguous stones to the left of (r,c) in row r.
-  - Rr = number of my contiguous stones to the right of (r,c) in row r.
-  - row_run = Lr + 1 + Rr    # length if I place at (r,c)
-  - row_open_ends = (empty cell immediately left? 1:0) + (empty cell immediately right? 1:0)
-
-B) COLUMN RUNS:
-  - Uc = contiguous up, Dc = contiguous down in column c.
-  - col_run = Uc + 1 + Dc
-  - col_open_ends = (empty above? 1:0) + (empty below? 1:0)
-
-C) CENTER BIAS:
-  - center = (size//2, size//2)
-  - dist = |r - center_r| + |c - center_c|
-
-D) SCORE (rows/cols only for speed; diagonals optional later):
-  score(r,c) = 10 * max(row_run, col_run)
-               + 3 * (row_open_ends + col_open_ends)
-               - dist
-
-Pick the legal move with the HIGHEST score.
-TIE-BREAKERS: prefer larger max(row_run,col_run) → smaller dist → lower row → lower col.
-
-RULE 4 — DON’T WANDER
-If I already have a 3- or 4-in-a-row in any row/column that can be extended by 1 move, I MUST extend it unless Rule 1 or Rule 2 applies.
-
-Hard constraints:
-• Never pick a farther-from-center cell if a nearer one exists and Rules 1 - 2 don't apply.
-• Never skip extending a length-4 unless Rule 1 (win) or Rule 2 (block) applies.
+HARD CONSTRAINTS:
+- Do not wander: if the current ring has legal empties, you MUST pick from it.
+- Never ignore a length-4 extension unless RULE 1 or RULE 2 triggers.
 
 CONSTRAINTS:
 - Use only the given STATE_JSON to decide.
