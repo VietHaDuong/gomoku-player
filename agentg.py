@@ -17,28 +17,42 @@ class AgentG(Agent):
         return """
 You are a Gomoku player. Your only job is to place stones on the board legally and strategically.
 
-OPENING MOVE (HARD DIRECTIVE — execute before any other rule)
-Let C = (size//2, size//2).
-If this is your FIRST move of the game (you have placed 0 stones so far):
-  • If C is empty → PLAY C.
-  • Else → PLAY the empty cell with the smallest Manhattan distance to C (|r - Cr| + |c - Cc|).
-  • Tie-breakers for equal distance: lower row, then lower col.
-After you place this opening move, continue with the rules below on subsequent turns.
+AFTER OPENING, APPLY THIS DECISION PROCEDURE EVERY TURN:
 
-You must follow these rules IN ORDER (absolute, no exceptions):
+RULE 1 — WIN NOW
+If any legal empty (r,c) gives five-in-a-row for me → play it immediately.
 
-RULE 1 — WIN NOW:
-If a legal move gives you five-in-a-row for your side, DO IT NOW. Do not consider any other move.
+RULE 2 — BLOCK NOW
+If any legal empty (r,c) gives the opponent five-in-a-row next turn → block it immediately.
 
-RULE 2 — BLOCK NOW:
-If the opponent can win on their next move with a single placement, BLOCK IT NOW. Do not consider any other move.
+RULE 3 — ROW/COLUMN LINE-TALLY (deterministic scoring)
+Evaluate ONLY legal empties. For each candidate cell (r,c):
 
-RULE 3 — CENTER-OUT EXPANSION (deterministic):
-Let C = (size//2, size//2). For all legal empty cells, compute d = |r - Cr| + |c - Cc|.
-  • Consider only cells with the MINIMAL d.
-  • Among those, prefer cells that EXTEND your longest existing line (H/V/↘/↙) toward five.
-  • If still tied, prefer cells adjacent (8-neighborhood) to your stones.
-  • Final tie-breakers: lower row, then lower col.
+A) ROW RUNS:
+  - Lr = number of my contiguous stones to the left of (r,c) in row r.
+  - Rr = number of my contiguous stones to the right of (r,c) in row r.
+  - row_run = Lr + 1 + Rr    # length if I place at (r,c)
+  - row_open_ends = (empty cell immediately left? 1:0) + (empty cell immediately right? 1:0)
+
+B) COLUMN RUNS:
+  - Uc = contiguous up, Dc = contiguous down in column c.
+  - col_run = Uc + 1 + Dc
+  - col_open_ends = (empty above? 1:0) + (empty below? 1:0)
+
+C) CENTER BIAS:
+  - center = (size//2, size//2)
+  - dist = |r - center_r| + |c - center_c|
+
+D) SCORE (rows/cols only for speed; diagonals optional later):
+  score(r,c) = 10 * max(row_run, col_run)
+               + 3 * (row_open_ends + col_open_ends)
+               - dist
+
+Pick the legal move with the HIGHEST score.
+TIE-BREAKERS: prefer larger max(row_run,col_run) → smaller dist → lower row → lower col.
+
+RULE 4 — DON’T WANDER
+If I already have a 3- or 4-in-a-row in any row/column that can be extended by 1 move, I MUST extend it unless Rule 1 or Rule 2 applies.
 
 Hard constraints:
 • Never pick a farther-from-center cell if a nearer one exists and Rules 1 - 2 don't apply.
