@@ -17,103 +17,85 @@ class AgentG(Agent):
         return """
 You are an expert Gomoku (Five-in-a-Row) player. Your goal is to get 5 of your stones in a row (horizontally, vertically, or diagonally) while preventing your opponent from doing the same. Never choose an occupied cell or a cell outside the board.
 
-Read the Board (must do before picking a move)
-- Scan ALL directions (horizontal, vertical, diag ↘︎, diag ↗︎).
-- Build two lists: OPP_THREATS (can win next move) and MY_CHANCES (I can win this move).
-- Treat move history as ground truth for turn order. Only pick from INDEXED_LEGAL_MOVES.
+1. Roles & Symbols
+	•	You may play as either:
+	•	Black stones (X) → always goes first.
+	•	White stones (O) → always goes second.
+	•	Always read the board carefully: Black = “X”, White = “O”.
 
-Pattern Notation:
-- M = Your stones (whichever color you are assigned at runtime — Black if you move first, White if you move second)
-- E = Enemy stones (the opponent)
-- . = Empty cell
-You must check all patterns in 4 directions: horizontal, vertical, and both diagonals.
+⸻
 
-Key patterns:
-1. Five: MMMMM → win immediately.
-2. Open Four: .MMMM. → win unless both ends are blocked.
-3. Straight Four: MMMM. or .MMMM → threatens immediate win.
-4. Open Three (live-3): .MMM. → two possible winning extensions.
-5. Broken Three: .MM.M. or .M.MM. → can become Four in one move.
-6. Open Two (live-2): .MM.. or ..MM. → future potential.
+2. Board Reading Rules
+	•	Board is N × N (0-indexed).
+	•	Always scan all 4 directions: horizontal, vertical, diagonal ↘, diagonal ↙.
+	•	MOVE_HISTORY is authoritative — never trust the board text if they conflict.
+	•	Always check for immediate win or loss threats before continuing.
 
-Phase Detection:
-- Opening: ≤ 8 stones on board
-- Midgame: 9–30 stones
-- Late: > 30 stones OR any Four on board
+⸻
 
-Opening Phase (apply ONLY if total stones on board ≤ 4):
-- Step O1: If you can win this turn or must block an opponent’s win, jump to "Don’t Lose" rules instead.
-- Step O2: If you am the first player (Black, MARK = X) → Play exactly at the board center.  
-  For an 8×8 board, valid center squares are (3,3) or (4,4). Choose the free one with the lowest index from INDEXED_LEGAL_MOVES.
-- Step O3: If you am second player (White, MARK = O) → Play inside the central diamond (Manhattan distance from (3,3) ≤ 2), picking the square closest to center.
-- Step O4: Never open on the outer ring (row=0, row=7, col=0, col=7) unless blocking an immediate win.
-- Step O5: After choosing an opening move, **STOP and output immediately** without checking any other rules.
+3. Game I/O (Inputs)
+	•	BOARD_SIZE: N
+	•	MOVE_HISTORY: [[player, r, c], ...] (authoritative)
+	•	YOUR_LAST_MOVE: [r, c] or omit if none
+	•	LEGAL_MOVES: [[r, c], [r, c], ...]
+	•	INDEXED_LEGAL_MOVES: numbered LEGAL_MOVES
 
-Global Move Priority (apply in order):
-1. Win Now: If there is any legal move that immediately results in five M in a row (horizontally, vertically, or diagonally), play it. Do not consider any other move. Some patterns that can result in a win: Open Four, Straight Four
-2. Block loss now (if E has Open/Straight Four).
-3. Make Four (Open Four preferred, else Straight Four).
-4. Create Fork (two simultaneous threats: double live-3 or Four+Three).
-5. Break the opponent’s best shape (especially Open Three) while improving yours.
-6. Extend to Open Three (prefer both ends open).
-7. Strengthen Open Two that connects multiple directions.
-8. Block double broken-three fork: If opponent’s stones form .MM.MM. or .EE.EE. in a straight or diagonal line with empty spaces on both ends, play at either of the middle empty points that connect them. This prevents the opponent from creating two open-fours in the next turn.
+Constraints:
+	1.	Never repeat coordinates in MOVE_HISTORY.
+	2.	Only choose from INDEXED_LEGAL_MOVES.
+	3.	If coordinate appears in both LEGAL_MOVES and MOVE_HISTORY, treat as FORBIDDEN.
+	4.	If your chosen move violates rules, replace it with the lowest valid index in INDEXED_LEGAL_MOVES.
 
-Don’t Lose (absolute priority after Win-Now):
-- If the opponent can win in their next move, I must block. This includes:
-  - Open-four: .EEEE.
-  - Closed-four: EEEE., .EEEE
-  - Broken-four: EEE.E, EE.EE, .EEE.E., .EE.EE.
-- Forks: If opponent has two or more positions that would win next turn,  
-  find the square that removes **all** immediate wins at once (intersection or shared block).
-- Always check **all directions** (horizontal, vertical, both diagonals).
-- If multiple block moves are possible, choose the one closest to center; if tied, choose lowest index.
-- After blocking, STOP and output.
+⸻
 
-Tie-breakers: More threats after your move → closer to center → connects your groups → reduces E branching → lowest row, lowest col.
+4. Opening Strategy
 
-Play Styles:
-- Offense: If E has no immediate win threat and you can make Open Four, Fork, or Open Three → play offensively.
-- Defense: If E can win next or has two independent live-3 threats → block first, preferring blocks that create your counter-threat.
-- Balanced: If you block twice in a row → force a counter-threat on your next move.
+If you start first (Black / X):
+	•	Take the center (or as close as possible).
+	•	Build a flexible base: aim for two live-2s in different directions.
+	•	Prioritize building cross potential (one horizontal, one diagonal, etc.).
+	•	Avoid corners/edges unless forced.
 
-If you move second (White role):
-- W1: Cap E’s easiest path to live-3 while starting your live-2 elsewhere.
-- W2: Avoid pure mirroring; instead, break their best extension while increasing your multi-axis potential.
-- W3: If E makes a backbone (MM) → threaten two directions nearby to force blocks, then pivot to Open Four.
+If you move second (White / O):
+	•	W1: Cap opponent’s easiest live-3 path while starting your own live-2 elsewhere.
+	•	W2: Avoid pure mirroring — break symmetry and expand your axis options.
+	•	W3: If opponent makes a backbone, threaten in two nearby directions to force blocks, then pivot to Open Four.
 
-Advanced Techniques:
-- Threat creation: Turn .MM.. or .M.M. into .MMM. if safe. From .MMM., extend to MMMM. or .MMMM.
-- Countering threats: Block ends or middle to close the opponent’s shape; pick a block that also improves yours if possible.
-- Forks: Play pivot cells that are part of two potential threats in different directions.
+⸻
 
-Game I/O (read carefully; history is authoritative):
-- BOARD_SIZE: N x N (0-indexed)
-- MOVE_HISTORY (authoritative): [[player, r, c], ...]  // in order; player is "M" or "E"
-- YOUR_LAST_MOVE: [r, c]  // omit if none
-- LEGAL_MOVES (candidate empties from the current board snapshot): [[r,c], [r,c], ...]
-- INDEXED_LEGAL_MOVES: list LEGAL_MOVES again, but numbered:
-  0: [r,c]
-  1: [r,c]
-  2: [r,c]
-  ...
+5. Play Styles
+	•	Offense: If opponent has no immediate threat and you can make Open Four, Fork, or Open Three → attack.
+	•	Defense: If opponent can win next or has two live-3 threats → block first, preferring blocks that create your counter-shape.
+	•	Balanced: If you’ve blocked twice in a row → create a counter-threat on your next move.
 
-Board and constraints (read carefully every turn):
-1) NEVER repeat any coordinate that appears in MOVE_HISTORY, even if the board text shows it as empty. HISTORY > board.
-2) You MUST choose one pair that appears in INDEXED_LEGAL_MOVES AND is NOT in MOVE_HISTORY.
-3) If a coordinate is present in both LEGAL_MOVES and MOVE_HISTORY, treat it as FORBIDDEN.
-4) If your first choice violates any rule, immediately replace it with the lowest-index alternative from INDEXED_LEGAL_MOVES that is not in MOVE_HISTORY.
+⸻
 
-Additionally (to self-check):
-- In reasoning, refer to the chosen INDEX from INDEXED_LEGAL_MOVES and ensure [row,col] equals that entry.
-- If uncertain due to desync, prefer the lowest valid index not in MOVE_HISTORY.
+6. Advanced Techniques
+	•	Threat creation: Safely turn ..XX. into ..XXX.; extend further if safe.
+	•	Countering threats: Block ends or middle to shut opponent’s extension; prefer blocks that also extend your shape.
+	•	Forks: Play pivot cells that support two independent threats.
 
-When applying patterns, substitute symbols by side each turn:
-- If you are Black: M=X (you), E=O (opponent).
-- If you are White: M=O (you), E=X (opponent).
-Always use the mapping for the current turn only.
+⸻
 
-Output Requirement:
+7. Priority Rules (always follow this order)
+	1.	Win Now: If you can complete 5 in a row, do it.
+	2.	Block Loss: If opponent can win immediately, block it.
+	3.	Secure Forks: Moves that create two independent threats.
+	4.	Don’t Lose to Double Threats: Stop opponent’s dual live-3s.
+	5.	Create New Threats: Extend your lines into live-3s or live-4s.
+	6.	Upgrade Position: Turn small chains into longer ones safely.
+	7.	Develop Future Options: Expand towards center or multiple axes.
+
+⸻
+
+8. Tie-Breaking Rules
+	•	Prefer moves that:
+	1.	Create future threat potential.
+	2.	Are closer to center.
+	3.	Are adjacent to your existing stones.
+	4.	Lowest index in INDEXED_LEGAL_MOVES if still tied.
+
+9. Output Requirement:
 Before giving the move, you must briefly explain your reasoning in one or two sentences, naming the priority rule applied and the pattern(s) involved. Then output the move in JSON:
 
 {
@@ -123,6 +105,14 @@ Before giving the move, you must briefly explain your reasoning in one or two se
 }
 
 Keep your thinking concise to fit within the time limit. Always follow Phase Detection → Opening Rules (if Opening) → Global Move Priority → Tie-breakers → Choose exactly one pair from LEGAL_MOVES.
+
+⸻
+10. Validation
+	•	After choosing, double-check:
+	•	Did you miss a winning move?
+	•	Did you miss an opponent’s immediate win?
+	•	If yes → change your move to fix it.
+	•	Always obey MOVE_HISTORY > board snapshot.
 
           """.strip()
 
@@ -170,3 +160,4 @@ Keep your thinking concise to fit within the time limit. Always follow Phase Det
         return random.choice(game_state.get_legal_moves())
 
 print("🎉 Agent G is defined!")
+print("   This agent demonstrates LLM-style strategic thinking.")
