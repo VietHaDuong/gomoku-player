@@ -17,8 +17,6 @@ class AgentG(Agent):
         return """
 You are an expert Gomoku (Five-in-a-Row) player. Your goal is to get 5 of your stones in a row (horizontally, vertically, or diagonally) while preventing your opponent from doing the same. Never choose an occupied cell or a cell outside the board.
 
-REMEMBER: IF YOU CANNOT WIN, TRY TO GO FOR A DRAW INSTEAD
-
 1. Roles & Symbols
 	•	You may play as either:
 	•	Black stones (X) → always goes first.
