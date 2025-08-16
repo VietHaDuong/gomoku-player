@@ -53,32 +53,11 @@ Constraints:
 
 4.1 If you can win in this move, always take the win.
 
-4.2a If the opponent can win in the next move, block it — but do so in a way that also builds your own line whenever possible.
+4.2 If the opponent can win in the next move, block it — but do so in a way that also builds your own line whenever possible.
 
-4.2b Edge-Sweep Guard (hard defense; runs before any offense)
-• If the opponent has ≥3 consecutive stones along any outer row/column (row 0/7 or col 0/7) with an open end,
-  you must block the nearer open end immediately.
-• When blocking an edge sweep, prefer an intersection square that also cuts an adjacent diagonal
-  (if two choices exist, pick the one that blocks BOTH the edge line and its diagonal pivot).
-
-4.2c Diagonal Pivot Alert (paired with 4.2b)
-• After any edge block, scan both diagonals through your block.
-• If the opponent can pivot next turn to a live-3 or broken-4 along ↘ or ↗, choose the block square that kills that
-  diagonal too; if that is impossible, plan your very next move to cap that diagonal immediately.
-
-4.2d Live-3 Hygiene (don't get raced)
-• Treat any opponent live-3 (three in a row with both ends open) as must-block anywhere on the board.
-• Broken-4s that become five with one move (XXX.X, XX.XX, .XXX.X.) are must-block.
-
-4.2e Two-Move Kill Pre-emption (triage)
-• If the opponent can form an open-4 in ONE move from an existing 3+ run (any direction), cap it now.
-• Prefer caps that also extend your chain or create a counter-threat (punishing defense).
-
-4.3 Fork Creation  (prepend this line at the top)
-4.3a Counterattack Conversion (after any block)
-• Your next move should force a response:
-  - Extend to open-4 or create a fork adjacent to the area you just blocked.
-  - If two counterattacks exist, choose the one that keeps their edge/diagonal group frozen.
+4.3 Always prefer moves that create forks (two or more simultaneous winning threats). 
+     - For example: extend a chain that also leaves an open diagonal. 
+     - If opponent blocks one, the other remains.
 
 4.4 Punishing Defense: 
      - When blocking, prioritize moves that also extend your own chain or prepare a fork.
@@ -92,13 +71,8 @@ Constraints:
      - Always extend or branch your lines toward positions that can become dual threats (overlapping rows/columns/diagonals).
      - Avoid scattered, isolated stones. Build clusters that generate pressure.
 
-4.7 If no winning or punishing moves are available, then play for draw by reducing open spaces and breaking the opponent's structure — 
+4.7 If no winning or punishing moves are available, then play for draw by reducing open spaces and breaking the opponent’s structure — 
      but keep looking for counterattack opportunities to turn defense into attack.
-     
-4.8 Anti-Passivity Guard
-• You may play at most one pure block in a row (a block that neither extends your chain nor threatens a fork),
-  unless an immediate win threat still exists. After a single pure block, you must play a move that forces a response
-  (fork, open-4, or an extension that threatens to become one).
 
 ⸻
 
@@ -106,33 +80,18 @@ Constraints:
 
 5.1 Start centrally — place first stones near the middle of the board. 
      This gives maximum flexibility for diagonals, rows, and forks.
-     
-5.2 Edge Anti-Rush Mode (auto-switch when opponent builds on row 0/7 or col 0/7)
 
-Trigger:
-• Opponent places two or more stones along the same outer row/column OR shows a 3-in-a-row near the edge.
-
-Plan:
-• Priority override: apply 4.2b - 4.2e first every turn (block edge open-ends, then check diagonal pivots).
-• Block at the intersection that also cuts the most dangerous diagonal (↘ or ↗).
-• Immediately apply Counterattack Conversion (4.3a):
-  - Build a fork or open-4 one or two cells inside the board, adjacent to the blocked edge group,
-    so the opponent must defend inward (steal tempo, freeze the edge).
-• Keep your stones **clustered inside** (distance 1-2 from the edge line) to reduce their liberties and deny re-builds.
-• Do not mirror across the whole board; fight locally until the edge group is neutralized, then return to AO plan.
-
-5.3 Early Goal: Create tension by building "live-2" or "live-3" formations in the center.
+5.2 Early Goal: Create tension by building "live-2" or "live-3" formations in the center.
      - Prioritize diagonals and crosses since these can branch into forks.
 
-5.4 Do not waste moves on distant corners unless forced by opponent. 
+5.3 Do not waste moves on distant corners unless forced by opponent. 
      Always keep pressure clustered.
 
-5.5 Try to shape overlapping threats:
+5.4 Try to shape overlapping threats:
      - Example: two diagonals intersecting with a row, so future moves can create instant forks.
 
-5.6 By the 5th - 7th move, aim to already have at least one dual-threat possibility forming.
+5.5 By the 5th - 7th move, aim to already have at least one dual-threat possibility forming.
      - This keeps opponent under pressure early, forcing mistakes.
-     
 
 ⸻
 
