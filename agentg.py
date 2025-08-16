@@ -47,92 +47,81 @@ Constraints:
 	4.	If your chosen move violates rules, replace it with the lowest valid index in INDEXED_LEGAL_MOVES.
 
 ⸻
-4. Priority Rules (Aggressively Opportunistic with Counterattack, always go in this order)
+4. Priority Rules — “Win-first plan, drop it only to survive”
 
-4.1 If you can win in this move, always take the win.
+4.1 Win-Now (hard stop)
+	•	Scan every legal move. If any move makes five-in-a-row (horizontal, vertical, ↘, ↗), play it and STOP.
 
-4.2 If the opponent can win in the next move, block it — but do so in a way that also builds your own line whenever possible.
-4.2a Plan-First Progress (when no win/loss is immediate)
-• Play the move that increases progress toward your Main Line milestones the most.
-  Simple threat score (pick the highest):
-  +5 create open-4 (.XXXX.)
-  +4 create fork (two independent threats next turn)
-  +3 upgrade to live-3 (.XXX.)
-  +2 extend live-2 to closed-3 (XX.)
-  +1 extend toward center/Anchor adjacency
-  Tie-breakers: more threats cut from opponent > closer to center > lower index.
+4.2 Block-Loss (hard stop)
+	•	If opponent can win next move (open/semi-open four; broken four like XXXX., .XXXX, XXX.X, XX.XX) → block the square that removes all immediate wins.
+	•	Treat live-3 with both ends open as urgent if your pass gives them an open four.
 
-4.2b Plan-Preserving Defense (when a block is required)
-• Choose the block that ALSO (i) extends your Main/Secondary Line or (ii) keeps both lines intact.
-• If no such block exists, place the minimal pure block that prevents the loss, then immediately resume Plan-First Progress.
+4.3 Plan-First Progress (when 4.1/4.2 didn't trigger)
+	•	Advance your Main Winning Line (defined in §5.3) toward the next milestone (see §5.4).
+	•	Simple progress score → choose the highest:
++5 create open-4 .XXXX.
++4 create a fork (two independent winning threats next turn)
++3 upgrade to live-3 .XXX.
++2 extend live-2 to closed-3 XX. (or symmetrical)
++1 extend adjacent toward the center anchor
 
-4.2c Re-evaluate Triggers (when to change the plan)
-• Switch or rotate the Main Line only if:
-  - the line is hard-capped at both ends, or
-  - opponent's block creates a strictly better fork elsewhere.
-• Otherwise, stay committed—finishing one planned line beats starting over.
+4.4 Plan-Preserving Defense (when a block is required)
+	•	If you must block, pick the block that also extends or protects your Main/Secondary Line.
+	•	If no such block exists, place the minimum pure block, then immediately return to §4.3 next move.
 
-4.3 Always prefer moves that create forks (two or more simultaneous winning threats). 
-     - For example: extend a chain that also leaves an open diagonal. 
-     - If opponent blocks one, the other remains.
+4.5 Drop-Plan Triggers (when to abandon/rotate the plan)
+	•	Only switch the plan if your Main Line is hard-capped at both ends, or the opponent's block creates a strictly better fork elsewhere.
+	•	Otherwise, stay committed; finishing one planned line beats starting over.
 
-4.4 Punishing Defense: 
-     - When blocking, prioritize moves that also extend your own chain or prepare a fork.
-     - Never place a block that only stops the opponent unless it is the only way to prevent immediate loss.
+4.6 Minimal & Central Bias
+	•	Prefer moves that are: (a) closer to the center anchor, (b) adjacent to your stones, (c) cut more opponent threats with the same move.
+	•	Avoid outer ring (row/col 0 or 7) unless it's a win or forced block.
 
-4.5 Tempo Stealing: 
-     - Choose moves that force the opponent to defend instead of attack.
-     - Example: if both you and opponent can extend, play the move that creates a bigger immediate threat.
+4.7 Tie-breakers
+	1.	Removes more opponent threats with one move
+	2.	Closer to center (see §5.1)
+	3.	More adjacency to your cluster
+	4.	Lowest index in INDEXED_LEGAL_MOVES
 
-4.6 Aggressive Expansion:
-     - Always extend or branch your lines toward positions that can become dual threats (overlapping rows/columns/diagonals).
-     - Avoid scattered, isolated stones. Build clusters that generate pressure.
-
-4.7 If no winning or punishing moves are available, then play for draw by reducing open spaces and breaking the opponent's structure — 
-     but keep looking for counterattack opportunities to turn defense into attack.
-
-4.8 Counterattack Bias:
-• After any forced block, your next move should create a threat that compels a response (fork or open-4) near your Anchor cluster.
+4.8 Validation (before output)
+	•	If a Win-Now move exists and your choice isn't it → change to Win-Now.
+	•	If opponent still has a one-move win after your choice → change to the block that removes all wins.
+	•	Confirm you scanned all 4 directions (horizontal, vertical, ↘, ↗).
      
 ⸻
 
-5. Opening Strategy (Aggressively Opportunistic with Counterattack)
+5. Opening — “Start in the middle, decide the win route early”
 
-5.1 Start centrally — place first stones near the middle of the board, the center of the board is defined as around (3, 4), (3, 3), (4, 3) and (4, 4). 
-     This gives maximum flexibility for diagonals, rows, and forks.
-     
-5.2 Winning-Line Commitment (decide your win route early)
+5.1 Middle of an 8x8 board
+	•	Core center cells: (3,3) (3,4) (4,3) (4,4)
+	•	Center ring (preferred next): (2,3) (2,4) (3,2) (3,5) (4,2) (4,5) (5,3) (5,4)
+	•	When choosing “nearest to center,” use Manhattan distance to this set; tie → lowest index in INDEXED_LEGAL_MOVES.
 
-• On your first 1-2 own moves, DECLARE a Main Line:
-  - Pick a direction from {horizontal, vertical, ↘, ↗} that goes through/near center.
-  - Choose an Anchor cell on that line (one of your existing stones near center).
+5.2 First two own moves (center discipline)
+	•	Your first legal move should be a core center if free; otherwise choose from the center ring closest to core.
+	•	Your second own move must still be inside core + center ring unless §4.2 forces a block.
+	•	Avoid edges/corners early unless blocking or winning.
 
-• Milestones for the Main Line:
-  M1: reach a connected live-2 along the line.
-  M2: upgrade to a live-3 (.XXX.) along the line.
-  M3: branch to a Secondary Line ≈90° to set up a fork.
-  M4: convert to open-4 (.XXXX.) → win next.
+5.3 Declare your Main Winning Line (direction + anchor)
+	•	On your first/second own move, choose a direction from {horizontal, vertical, ↘, ↗} that passes through/near the center.
+	•	Anchor = one of your stones in core/center ring; build outward from here.
+	•	Also seed a Secondary Line ≈90° to the Main Line for future forks.
 
-• Move selection (opening, unless survival triggers):
-  - Prefer moves that advance the Main Line toward the next milestone.
-  - If two moves advance equally, pick the one that also seeds the Secondary Line.
-  - Avoid scattering: every move should extend/branch from your Anchor cluster.
+5.4 Milestones to finish the game
+	•	M1: reach a connected live-2 along the Main Line
+	•	M2: upgrade to live-3 .XXX. along that line
+	•	M3: branch to create a fork with the Secondary Line
+	•	M4: convert to open-4 .XXXX. → win next turn
 
-• Plan-preserving defense (opening):
-  - If you must block, choose a block that also advances or protects your Main/Secondary Line when possible.
-  - If a pure block is unavoidable, return to advancing the Main Line on the very next move.
+5.5 Plan-preserving rule
+	•	Every opening move should either:
+(a) advance the Main Line toward the next milestone, or
+(b) seed/strengthen the Secondary Line near the anchor.
+	•	If forced to block, apply §4.4 and then resume Main Line progress.
 
-5.3 Early Goal: Create tension by building "live-2" or "live-3" formations in the center.
-     - Prioritize diagonals and crosses since these can branch into forks.
-
-5.4 Do not waste moves on distant corners unless forced by opponent. 
-     Always keep pressure clustered.
-
-5.5 Try to shape overlapping threats:
-     - Example: two diagonals intersecting with a row, so future moves can create instant forks.
-
-5.6 By the 5th - 7th move, aim to already have at least one dual-threat possibility forming.
-     - This keeps opponent under pressure early, forcing mistakes.
+5.6 Scanning discipline (never skip)
+	•	Every evaluation scans all 4 directions; give diagonals equal priority to straight lines.
+	•	MOVE_HISTORY is authoritative. Only output a coordinate from INDEXED_LEGAL_MOVES that is not in MOVE_HISTORY.
 
 ⸻
 
