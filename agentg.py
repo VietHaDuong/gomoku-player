@@ -15,156 +15,127 @@ class AgentG(Agent):
     def _create_system_prompt(self) -> str:
         """Create the system prompt that teaches the LLM how to play Gomoku."""
         return """
-You are an expert Gomoku (Five-in-a-Row) player. Your goal is to get 5 of your stones in a row (horizontally, vertically, or diagonally) while preventing your opponent from doing the same. Never choose an occupied cell or a cell outside the board.
+You are a Gomoku agent. You must pick a legal move on every turn.
 
-1. Roles & Symbols
-	•	You may play as either:
-	•	Black stones (X) → always goes first.
-	•	White stones (O) → always goes second.
-	•	Always read the board carefully: Black = “X”, White = “O”.
+Ground rules:
+- Board uses 0-indexed rows/cols. "X" = Black (moves first), "O" = White.
+- Respond with JSON ONLY: { "reasoning": "Brief explanation of your strategic thinking", "row": <int>, "col": <int>}.
+- Never choose an occupied cell or a cell outside the board.
+- Keep internal reasoning brief; do not include it in the output.
 
-⸻
+Play policy (You MUST follow this rules EXACTLY):
+1) Opening:
+   - If there are zero stones, play the exact center: (size//2, size//2). 
+   - If there are already stone (from the opponent in the center), play it in the nearest position to opponent stone.
+	 - After placing your stone, try to build on it to win (e.g. XXXXX or O if you started as white (second player)).
+	 - Concentrate on controlling the center of the board, as this can provide most of the opportunities.
+	 - You MUST always try to go for a win move in the center at first (e.g. (3,3), (2,3), (1,3) ,(4,3) ,(5,3) for vertical win. Try to go horizontal, both diagonals too)
 
-2. Board Reading Rules
-	•	Board is N x N (0-indexed).
-	•	Always scan all 4 directions: horizontal, vertical, diagonal ↘, diagonal ↙.
-	•	MOVE_HISTORY is authoritative — never trust the board text if they conflict.
-	•	Always check for immediate win or loss threats before continuing.
+2) Midgame priorities (no explicit “win-move list” needed—apply heuristics):
+   - Prefer moves that extend your longest line (horizontal/vertical/diagonal) with low blocking.
+   - Create threats: aim for open-threes and open-fours when available; prefer placements that produce multiple converging lines.
+   - Avoid helping the opponent create immediate strong threats.
+   - If the opponent has an immediate line-of-four with an open end, block it.
 
-⸻
+3) Tie-breakers (in order):
+   - Centrality (closer to center).
+   - Creates/extends more lines simultaneously.
+   - Keeps flexibility (more follow-up empties adjacent).
 
-3. Game I/O (Inputs)
-	•	BOARD_SIZE: N
-	•	MOVE_HISTORY: [[player, r, c], ...] (authoritative)
-	•	YOUR_LAST_MOVE: [r, c] or omit if none
-	•	LEGAL_MOVES: [[r, c], [r, c], ...]
-	•	INDEXED_LEGAL_MOVES: numbered LEGAL_MOVES
-
-Constraints:
-	1.	Never repeat coordinates in MOVE_HISTORY.
-	2.	Only choose from INDEXED_LEGAL_MOVES.
-	3.	If coordinate appears in both LEGAL_MOVES and MOVE_HISTORY, treat as FORBIDDEN.
-	4.	If your chosen move violates rules, replace it with the lowest valid index in INDEXED_LEGAL_MOVES.
-
-⸻
-4. Priority Rules — “Win-first plan, drop it only to survive”
-
-4.1 Win-Now (hard stop)
-	•	Scan every legal move. If any move makes five-in-a-row (horizontal, vertical, ↘, ↗), play it and STOP.
-
-4.2 Block-Loss (hard stop)
-	•	If opponent can win next move (open/semi-open four; broken four like XXXX., .XXXX, XXX.X, XX.XX) → block the square that removes all immediate wins.
-	•	Treat live-3 with both ends open as urgent if your pass gives them an open four.
-
-4.3 Plan-First Progress (when 4.1/4.2 didn't trigger)
-	•	Advance your Main Winning Line (defined in §5.3) toward the next milestone (see §5.4).
-	•	Simple progress score → choose the highest:
-+5 create open-4 .XXXX.
-+4 create a fork (two independent winning threats next turn)
-+3 upgrade to live-3 .XXX.
-+2 extend live-2 to closed-3 XX. (or symmetrical)
-+1 extend adjacent toward the center anchor
-
-4.4 Plan-Preserving Defense (when a block is required)
-	•	If you must block, pick the block that also extends or protects your Main/Secondary Line.
-	•	If no such block exists, place the minimum pure block, then immediately return to §4.3 next move.
-
-4.5 Drop-Plan Triggers (when to abandon/rotate the plan)
-	•	Only switch the plan if your Main Line is hard-capped at both ends, or the opponent's block creates a strictly better fork elsewhere.
-	•	Otherwise, stay committed; finishing one planned line beats starting over.
-
-4.6 Minimal & Central Bias
-	•	Prefer moves that are: (a) closer to the center anchor, (b) adjacent to your stones, (c) cut more opponent threats with the same move.
-	•	Avoid outer ring (row/col 0 or 7) unless it's a win or forced block.
-
-4.7 Tie-breakers
-	1.	Removes more opponent threats with one move
-	2.	Closer to center (see §5.1)
-	3.	More adjacency to your cluster
-	4.	Lowest index in INDEXED_LEGAL_MOVES
-
-4.8 Validation (before output)
-	•	If a Win-Now move exists and your choice isn't it → change to Win-Now.
-	•	If opponent still has a one-move win after your choice → change to the block that removes all wins.
-	•	Confirm you scanned all 4 directions (horizontal, vertical, ↘, ↗).
-     
-⸻
-
-5. Opening — “Start in the middle, decide the win route early”
-
-5.1 Middle of an 8x8 board
-	•	Core center cells: (3,3) (3,4) (4,3) (4,4)
-	•	Center ring (preferred next): (2,3) (2,4) (3,2) (3,5) (4,2) (4,5) (5,3) (5,4)
-	•	When choosing “nearest to center,” use Manhattan distance to this set; tie → lowest index in INDEXED_LEGAL_MOVES.
-
-5.2 First two own moves (center discipline)
-	•	Your first legal move should be a core center if free; otherwise choose from the center ring closest to core.
-	•	Your second own move must still be inside core + center ring unless §4.2 forces a block.
-	•	Avoid edges/corners early unless blocking or winning.
-
-5.3 Declare your Main Winning Line (direction + anchor)
-	•	On your first/second own move, choose a direction from {horizontal, vertical, ↘, ↗} that passes through/near the center.
-	•	Anchor = one of your stones in core/center ring; build outward from here.
-	•	Also seed a Secondary Line ≈90° to the Main Line for future forks.
-
-5.4 Milestones to finish the game
-	•	M1: reach a connected live-2 along the Main Line
-	•	M2: upgrade to live-3 .XXX. along that line
-	•	M3: branch to create a fork with the Secondary Line
-	•	M4: convert to open-4 .XXXX. → win next turn
-
-5.5 Plan-preserving rule
-	•	Every opening move should either:
-(a) advance the Main Line toward the next milestone, or
-(b) seed/strengthen the Secondary Line near the anchor.
-	•	If forced to block, apply §4.4 and then resume Main Line progress.
-
-5.6 Scanning discipline (never skip)
-	•	Every evaluation scans all 4 directions; give diagonals equal priority to straight lines.
-	•	MOVE_HISTORY is authoritative. Only output a coordinate from INDEXED_LEGAL_MOVES that is not in MOVE_HISTORY.
-
-⸻
-
-6. Play Styles
-	•	Offense: If opponent has no immediate threat and you can make Open Four, Fork, or Open Three → attack.
-	•	Defense: If opponent can win next or has two live-3 threats → block first, preferring blocks that create your counter-shape.
-	•	Balanced: If you've blocked twice in a row → create a counter-threat on your next move.
-
-
-⸻
-7. Advanced Techniques
-	•	Threat creation: Safely turn ..XX. into ..XXX.; extend further if safe.
-	•	Countering threats: Block ends or middle to shut opponent's extension; prefer blocks that also extend your shape.
-	•	Forks: Play pivot cells that support two independent threats.
-
-⸻
-8. Tie-Breaking Rules
-	•	Prefer moves that:
-	1.	Create future threat potential.
-	2.	Are closer to center.
-	3.	Are adjacent to your existing stones.
-	4.	Lowest index in INDEXED_LEGAL_MOVES if still tied.
-
-9. Output Requirement:
-Before giving the move, you must briefly explain your reasoning in one or two sentences, naming the priority rule applied and the pattern(s) involved. Then output the move in JSON:
-
-{
-              "reasoning": "Brief explanation of your strategic thinking",
-              "row": <row_number>,
-              "col": <col_number>
-}
-
-Keep your thinking concise to fit within the time limit. Always follow Phase Detection → Opening Rules (if Opening) → Global Move Priority → Tie-breakers → Choose exactly one pair from LEGAL_MOVES.
-
-⸻
-10. Validation
-	•	After choosing, double-check:
-	•	Did you miss a winning move?
-	•	Did you miss an opponent's immediate win?
-	•	If yes → change your move to fix it.
-	•	Always obey MOVE_HISTORY > board snapshot.
+You have up to 20 seconds to think carefully. Do not answer immediately. First, write your reasoning. Only after your reasoning is complete, choose the final move.
 
           """.strip()
+
+    def assess_board(self, game_state: GameState) -> dict:
+        """
+        Return a minimal, LLM-friendly snapshot of the current board state.
+        No strategy, no win/opportunity detection — just facts.
+
+        Output schema:
+        {
+            "bot_side": "X" | "O",
+            "opponent_side": "O" | "X",
+            "stones": [(row, col, "X"|"O"), ...],
+            "empty_positions": [(row, col), ...],
+            "size": int   # board is size x size
+        }
+        """
+        # 1) Determine bot side from the game engine if available; fallback to count rule.
+        bot_side = None
+        try:
+            # Many engines expose current_player.value as "X" or "O"
+            bot_side = getattr(getattr(game_state, "current_player", None), "value", None)
+            if bot_side not in ("X", "O"):
+                bot_side = None
+        except Exception:
+            bot_side = None
+
+        # 2) Get a machine-parseable board by formatting, then parsing.
+        # We assume format_board("standard") includes only X/O/. somewhere per line.
+        try:
+            board_str = game_state.format_board(formatter="standard")
+        except Exception:
+            # Fallback if other formatter name is required
+            board_str = game_state.format_board()
+
+        rows = []
+        for line in board_str.splitlines():
+            symbols = [ch for ch in line if ch in ("X", "O", ".")]
+            if symbols:
+                rows.append(symbols)
+
+        if not rows:
+            # If formatting gave nothing parseable, provide an empty minimal structure
+            return {
+                "bot_side": bot_side or "X",  # harmless default
+                "opponent_side": "O" if (bot_side or "X") == "X" else "X",
+                "stones": [],
+                "empty_positions": [],
+                "size": 0,
+            }
+
+        size = max(len(r) for r in rows)
+        # Normalize jagged rows (just in case)
+        for i, r in enumerate(rows):
+            if len(r) < size:
+                rows[i] = r + ["." for _ in range(size - len(r))]
+        grid = rows  # size x size of "X"/"O"/"."
+
+        # 3) Collect stones and empties
+        stones = []
+        empty_positions = []
+        countX = countO = 0
+        for r in range(len(grid)):
+            for c in range(len(grid[r])):
+                cell = grid[r][c]
+                if cell == ".":
+                    empty_positions.append((r, c))
+                elif cell in ("X", "O"):
+                    stones.append((r, c, cell))
+                    if cell == "X":
+                        countX += 1
+                    else:
+                        countO += 1
+
+        # 4) If bot_side still unknown, infer by count rule (X starts first):
+        #    - If X has more stones, it's O's turn → bot is "O"
+        #    - If O has more stones, it's X's turn → bot is "X"
+        if bot_side not in ("X", "O"):
+            if countX > countO:
+                bot_side = "O"
+            elif countO > countX:
+                bot_side = "X"
+            else:
+                # Equal counts → X to move at start of game
+                bot_side = "X"
+
+        return {
+            "bot_side": bot_side,
+            "opponent_side": "O" if bot_side == "X" else "X",
+            "stones": stones,
+            "empty_positions": empty_positions,
+            "size": size,
+        }
 
     async def get_move(self, game_state: GameState) -> Tuple[int, int]:
         """Main method: Get the next move from our LLM."""
@@ -176,8 +147,11 @@ Keep your thinking concise to fit within the time limit. Always follow Phase Det
         try:
 
             board_str = game_state.format_board(formatter="standard")
+
             board_prompt = f"Current board state:\n{board_str}\n"
             board_prompt += f"Current player: {game_state.current_player.value}\n"
+            state = self.assess_board(game_state)
+            board_prompt += "\nSTATE_JSON (from assess_board):\n" + json.dumps(state, separators=(',', ':')) + "\n"
 
             # Create messages for the LLM
             messages = [
