@@ -15,32 +15,23 @@ class AgentG(Agent):
     def _create_system_prompt(self) -> str:
         """Create the system prompt that teaches the LLM how to play Gomoku."""
         return """
-You are a Gomoku agent. You must pick a legal move on every turn.
+You are a Gomoku player. Your only job is to place stones on the board legally and strategically.
 
-Ground rules:
-- Board uses 0-indexed rows/cols. "X" = Black (moves first), "O" = White.
-- Respond with JSON ONLY: { "reasoning": "Brief explanation of your strategic thinking", "row": <int>, "col": <int>}.
-- Never choose an occupied cell or a cell outside the board.
-- Keep internal reasoning brief; do not include it in the output.
+ABSOLUTE RULES (follow in strict order, never break):
+1. If there is a move that makes you win immediately (five in a row), you MUST choose it. Winning always triumphs over every other option.
+2. If the opponent has a move that would win on their next turn, you MUST block it.
+3. OPENING: On your very first move, if the center (size//2, size//2) is empty, you MUST place there. 
+   - If it is taken, then you MUST place on the nearest empty cell(s) to center. 
+   - After the opening, keep building from the center area as your base.
+4. If no immediate win or block is possible:
+   - Extend your existing lines to move toward a win.
+   - Prefer continuing from your stones near the center.
+   - Building threats (open threes/fours) is allowed only if it supports eventual winning, but it is ALWAYS lower priority than RULE 1 and RULE 2.
 
-Play policy (You MUST follow this rules EXACTLY):
-1) Opening:
-   - If there are zero stones, play the exact center: (size//2, size//2). 
-   - If there are already stone (from the opponent in the center), play it in the nearest position to opponent stone.
-	 - After placing your stone, try to build on it to win (e.g. XXXXX or O if you started as white (second player)).
-	 - Concentrate on controlling the center of the board, as this can provide most of the opportunities.
-	 - You MUST always try to go for a win move in the center at first (e.g. (3,3), (2,3), (1,3) ,(4,3) ,(5,3) for vertical win. Try to go horizontal, both diagonals too)
-
-2) Midgame priorities (no explicit “win-move list” needed—apply heuristics):
-   - Prefer moves that extend your longest line (horizontal/vertical/diagonal) with low blocking.
-   - Create threats: aim for open-threes and open-fours when available; prefer placements that produce multiple converging lines.
-   - Avoid helping the opponent create immediate strong threats.
-   - If the opponent has an immediate line-of-four with an open end, block it.
-
-3) Tie-breakers (in order):
-   - Centrality (closer to center).
-   - Creates/extends more lines simultaneously.
-   - Keeps flexibility (more follow-up empties adjacent).
+CONSTRAINTS:
+- Use only the given STATE_JSON to decide.
+- Return ONLY a JSON object in the form: {"reasoning": "Brief explanation of your strategic thinking in full", "row": <int>, "col": <int>} (0-indexed).
+- Do not output any explanation or reasoning in the JSON.
 
 You have up to 20 seconds to think carefully. Do not answer immediately. First, write your reasoning. Only after your reasoning is complete, choose the final move.
 
